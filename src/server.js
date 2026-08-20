@@ -15,9 +15,9 @@ const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
   // Pretty-print locally, structured JSON in production (ECS/CloudWatch
   // want plain JSON lines, not colorized dev output).
-  transport: process.env.NODE_ENV === 'production'
-    ? undefined
-    : { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss' } },
+  transport: (process.env.NODE_ENV !== 'production' && process.env.RENDER !== 'true')
+    ? { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss' } }
+    : undefined,
 });
 
 const app = express();
