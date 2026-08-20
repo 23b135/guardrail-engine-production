@@ -6,10 +6,16 @@
 
 const TOXIC_TERMS = [
   'idiot', 'stupid', 'hate you', 'kill yourself', 'worthless',
-  'shut up', 'moron', 'dumb', 'pathetic', 'trash', 'loser',
+  'shut up', 'shut the', 'moron', 'dumb', 'pathetic', 'trash',
+  'loser', 'waste of oxygen', 'waste of space', 'scum', 'disgusting',
+  'ugly', 'fat', 'freak', 'psycho', 'retard', 'imbecile',
+  'go to hell', 'screw you', 'piece of', 'garbage',
 ];
 
-const SEVERE_TERMS = ['kill yourself', 'i hate you', 'worthless'];
+const SEVERE_TERMS = [
+  'kill yourself', 'i hate you', 'worthless', 'waste of oxygen',
+  'waste of space', 'kys',
+];
 
 function scoreToxicity(text) {
   const lower = text.toLowerCase();
