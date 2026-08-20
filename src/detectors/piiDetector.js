@@ -16,7 +16,11 @@ const PII_PATTERNS = [
   { type: 'SSN', regex: /\b\d{3}-\d{2}-\d{4}\b/g },
   { type: 'CREDIT_CARD', regex: /\b(?:\d[ -]*?){13,16}\b/g },
   { type: 'AADHAAR', regex: /\b\d{4}\s?\d{4}\s?\d{4}\b/g },
-  { type: 'PHONE', regex: /\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3,4}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g },
+    { type: 'PHONE', regex: /\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3,4}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g },
+  {
+    type: 'ADDRESS',
+    regex: /\b\d{1,5}[a-zA-Z]?\s+([A-Za-z]+\s){0,4}(Street|St|Road|Rd|Avenue|Ave|Lane|Ln|Drive|Dr|Boulevard|Blvd|Nagar|Colony|Sector|Block)\b/g,
+  },
 ];
 
 function detectPII(text) {
