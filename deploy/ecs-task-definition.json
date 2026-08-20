@@ -1,0 +1,42 @@
+{
+  "family": "guardrail-engine",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "executionRoleArn": "REPLACE_WITH_ecsTaskExecutionRole_ARN",
+  "taskRoleArn": "REPLACE_WITH_TASK_ROLE_ARN_THAT_HAS_DYNAMODB_ACCESS",
+  "containerDefinitions": [
+    {
+      "name": "guardrail-engine",
+      "image": "REPLACE_WITH_YOUR_ECR_IMAGE_URI:latest",
+      "portMappings": [{ "containerPort": 3001, "protocol": "tcp" }],
+      "essential": true,
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "AUDIT_STORE", "value": "dynamodb" },
+        { "name": "AUDIT_TABLE_NAME", "value": "guardrail-audit-log" },
+        { "name": "AWS_REGION", "value": "us-east-1" }
+      ],
+      "secrets": [
+        { "name": "GROQ_API_KEY", "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:guardrail/groq-api-key" },
+        { "name": "GEMINI_API_KEY", "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:guardrail/gemini-api-key" }
+      ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3001/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 10
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/guardrail-engine",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "guardrail"
+        }
+      }
+    }
+  ]
+}

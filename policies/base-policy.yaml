@@ -1,0 +1,26 @@
+name: base-policy
+version: 1
+description: >
+  Provider-agnostic safety policy. These rules are defined ONCE and applied
+  identically regardless of which LLM provider generated the output.
+
+rules:
+  - id: pii_redaction
+    check: pii
+    action: redact
+    description: Detects emails, phone numbers, credit card numbers, and Aadhaar-style IDs; replaces them with tokenised placeholders.
+
+  - id: toxicity_block
+    check: toxicity
+    action: block
+    threshold: 0.6
+    description: Scores output for toxic/abusive language; blocks the response if score exceeds threshold.
+
+  - id: topic_denial
+    check: topic
+    action: block
+    denied_topics:
+      - "how to make explosives"
+      - "self harm instructions"
+      - "illegal drug synthesis"
+    description: Blocks responses that match denied topic keywords/semantic patterns.

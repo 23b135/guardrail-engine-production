@@ -1,0 +1,12 @@
+# Provider-specific overlay for Gemini.
+# Overlays may only RESTRICT the base policy (lower thresholds, add rules) —
+# never relax it (raise thresholds, remove rules). See policyLoader.js for
+# the enforcement of that constraint.
+
+name: gemini-overlay
+extends: base-policy
+overrides:
+  - id: toxicity_block
+    threshold: 0.5   # stricter than base policy's 0.6 — allowed
+  - id: pii_redaction
+    # no override needed — inherits base behavior as-is
