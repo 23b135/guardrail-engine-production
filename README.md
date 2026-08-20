@@ -49,6 +49,7 @@ guardrail-engine/
 | Logging | Structured JSON logs via `pino`/`pino-http` |
 | Error handling | Input validation, centralized error handler, provider errors kept out of client-facing messages |
 | Health check | `/health` checks policy files load, the audit backend is reachable, and providers are registered — returns `503` if something is actually broken |
+| PII types | Email, phone, credit card, SSN, Aadhaar, and free-text addresses (regex-based) |
 | LLM providers | Calls real Groq/Gemini APIs when API keys are set; falls back to deterministic mock responses when they're not, so it's fully testable at zero cost |
 
 ## Run it locally
@@ -166,6 +167,9 @@ references them via `secrets` (ARNs).
   relaxations.
 - **Topic denial**: keyword + synonym-expanded cosine-similarity
   matching, catching paraphrases a pure keyword filter would miss.
+- **PII detection**: regex-based, checked in priority order with
+  overlap-avoidance so a single value (e.g. a 16-digit card number)
+  is never double-tagged under two categories.
 - **Mock mode**: fully usable with zero API cost when no provider keys
   are set.
 
@@ -175,6 +179,10 @@ references them via `secrets` (ARNs).
   classifier — cheap and fast, but will miss toxic phrasing that
   avoids the listed terms. Swapping in a real lightweight classifier
   only touches `src/detectors/toxicityDetector.js`.
+- PII detection covers structured formats (email, phone, credit card,
+  SSN, Aadhaar) and free-text addresses via regex; person names
+  aren't detected, since names don't follow a reliable pattern and
+  would need an NER model or LLM-based pass — a natural next step.
 - `getAllEvents()` on the DynamoDB store does a full table scan, fine
   at low volume but should move to a paginated query on a date-based
   GSI at real production scale.
