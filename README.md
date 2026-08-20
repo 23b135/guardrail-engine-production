@@ -1,5 +1,7 @@
 # Guardrail Engine
 
+**Live demo:** https://guardrail-engine-production.onrender.com
+
 A single safety policy — PII redaction, toxicity blocking, topic denial —
 defined **once** and enforced **identically** across multiple LLM providers.
 Ships as a containerized service with a real API, structured logging, and
@@ -15,33 +17,34 @@ writing one small adapter file, and the policy logic never changes.
 
 ## Project structure
 
-```
 guardrail-engine/
 ├── policies/
-│   ├── base-policy.yaml             # the ONE policy definition
-│   └── overlays/gemini-overlay.yaml # provider overlay (restrict-only)
+│ ├── base-policy.yaml # the ONE policy definition
+│ └── overlays/ # provider overlays (restrict-only)
+│ ├── gemini-overlay.yaml
+│ └── groq-overlay.yaml
 ├── src/
-│   ├── detectors/                   # PII, toxicity, topic checks (provider-agnostic)
-│   ├── providers/                   # groqProvider.js, geminiProvider.js, registry.js
-│   ├── policy/                      # policyLoader.js (inheritance), policyEngine.js
-│   ├── audit/
-│   │   ├── auditLog.js              # picks a backend by env var
-│   │   └── stores/                  # fileStore.js (local) / dynamoStore.js (AWS)
-│   └── server.js                    # Express API, health check, logging, shutdown
-├── public/index.html                # dashboard
-├── deploy/                          # AWS ECS task def + DynamoDB setup script
+│ ├── detectors/ # PII, toxicity, topic checks (provider-agnostic)
+│ ├── providers/ # groqProvider.js, geminiProvider.js, registry.js
+│ ├── policy/ # policyLoader.js (inheritance), policyEngine.js
+│ ├── audit/
+│ │ ├── auditLog.js # picks a backend by env var
+│ │ └── stores/ # fileStore.js (local) / dynamoStore.js (AWS)
+│ └── server.js # Express API, health check, logging, shutdown
+├── public/index.html # dashboard
+├── deploy/ # AWS ECS task def + DynamoDB setup script (reference; live deployment is on Render)
 ├── Dockerfile
 ├── docker-compose.yml
 └── .env.example
-```
+
 
 ## What's included
 
 | Area | Details |
 |---|---|
-| Deployment | `Dockerfile` builds a container that runs on AWS ECS Fargate, App Runner, EKS, or any Docker host |
-| Concurrency | Node's event loop handles concurrent requests natively; audit writes are serialized to avoid a read-modify-write race — verified with 20 parallel requests, zero events lost |
-| State | File store for local/single-instance use; DynamoDB store (`AUDIT_STORE=dynamodb`) for state that survives restarts and stays consistent across multiple instances |
+| Deployment | `Dockerfile` builds a container; deployed live on Render. Also compatible with AWS ECS Fargate, App Runner, EKS, or any Docker host — configs included in `deploy/` |
+| Concurrency | Node's event loop handles concurrent requests natively; audit writes are serialized to avoid a read-modify-write race |
+| State | File store for local/single-instance use; DynamoDB store (`AUDIT_STORE=dynamodb`) scaffolded for state that survives restarts and stays consistent across multiple instances |
 | API | REST — `/api/chat`, `/api/audit`, `/api/policy`, `/api/policy-comparison` |
 | Logging | Structured JSON logs via `pino`/`pino-http` |
 | Error handling | Input validation, centralized error handler, provider errors kept out of client-facing messages |
@@ -67,7 +70,21 @@ docker compose up --build
 Builds and runs the same image you'd deploy to production, with a
 persistent volume for the audit log.
 
-## Deploying to AWS
+## Deployed on Render
+
+The live demo above is deployed on [Render](https://render.com), built
+straight from this repo's `Dockerfile`:
+- Service points at this repo — Render auto-detects the `Dockerfile`.
+- `GROQ_API_KEY` / `GEMINI_API_KEY` set as environment variables in
+  Render's dashboard.
+- Public HTTPS URL, no AWS account needed.
+
+## AWS deployment (reference architecture)
+
+The `deploy/` folder contains a complete AWS deployment path
+(ECS Fargate + DynamoDB), included to demonstrate the production
+architecture even though the live demo runs on Render for this
+submission.
 
 ### Option A — App Runner (fastest, least infrastructure)
 
@@ -92,9 +109,9 @@ App Runner handles the load balancer, scaling, and HTTPS automatically.
 2. Create the DynamoDB audit table (see below) and set `AUDIT_STORE=dynamodb`
    for multi-task persistence.
 3. Register the task definition:
-   ```bash
+```bash
    aws ecs register-task-definition --cli-input-json file://deploy/ecs-task-definition.json
-   ```
+```
    Fill in your ECR image URI, task execution role, and (if using
    DynamoDB) a task role with `dynamodb:PutItem`/`dynamodb:Scan` on the
    table.
@@ -119,15 +136,6 @@ Store `GROQ_API_KEY` / `GEMINI_API_KEY` in AWS Secrets Manager, not in
 the task definition or repo. `deploy/ecs-task-definition.json` already
 references them via `secrets` (ARNs).
 
-## Alternative: deploy without AWS
-
-[Render](https://render.com) or [Railway](https://railway.app) will
-build straight from this repo's `Dockerfile`:
-- Point the service at this repo — it auto-detects the `Dockerfile`.
-- Add `GROQ_API_KEY` / `GEMINI_API_KEY` as environment variables in
-  their dashboard.
-- You get a public HTTPS URL with no AWS account needed.
-
 ## API endpoints
 
 | Method | Path | Purpose |
@@ -149,10 +157,13 @@ build straight from this repo's `Dockerfile`:
 - **Adding a new provider**: write one file with a `generate(prompt)`
   function, register it in `registry.js`. No changes to
   `policyEngine.js`, `server.js`, or the audit layer.
-- **Policy inheritance**: `policies/overlays/gemini-overlay.yaml` can
-  only *restrict* the base policy (e.g. lower a toxicity threshold).
-  An overlay attempting to relax a rule is rejected at merge time and
-  logged, enforced in `policyLoader.js`.
+- **Policy inheritance**: overlays in `policies/overlays/` (one per
+  provider: `gemini-overlay.yaml`, `groq-overlay.yaml`) can only
+  *restrict* the base policy (e.g. lower a toxicity threshold). An
+  overlay attempting to relax a rule is rejected at merge time and
+  logged, enforced in `policyLoader.js`. `/api/policy-comparison`
+  shows the effective policy per provider and any rejected
+  relaxations.
 - **Topic denial**: keyword + synonym-expanded cosine-similarity
   matching, catching paraphrases a pure keyword filter would miss.
 - **Mock mode**: fully usable with zero API cost when no provider keys
@@ -167,3 +178,7 @@ build straight from this repo's `Dockerfile`:
 - `getAllEvents()` on the DynamoDB store does a full table scan, fine
   at low volume but should move to a paginated query on a date-based
   GSI at real production scale.
+- Audit storage on the live demo is file-based (single Render
+  instance), matching `AUDIT_STORE=file`; the DynamoDB path is
+  implemented and AWS-deployment-ready but not exercised in this
+  submission's live environment.
